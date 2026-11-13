@@ -92,6 +92,16 @@ Allowed event outcomes are `import_succeeded`, `import_partial`, `invalid_payloa
 
 Durable analytics contain only EmberAuth subject/membership/installation/session IDs, module/site, sanitized title, quantity, price/currency, producer version, target host, proxy-used boolean, timestamps, retrieval count, and allowlisted outcome codes. Cookies, storage values, proxy URL/credentials, full target URL, tokens, and raw errors exist only inside the encrypted ten-minute payload and are never logged.
 
+## Production
+
+The live service is the static binary on the London droplet, not this Docker
+Compose file. `deploy/postgres-app-role.sql` is the grant script for
+`ember_checkouts_app`. The API listens on `:8080`. Production sets
+`PUBLIC_BASE_URL=https://checkouts.emberaio.com`,
+`EMBER_AUTH_URL=https://auth.emberaio.com`, and
+`TRUSTED_PROXIES=127.0.0.1`, and leaves `EMBER_AUTH_JWKS_URL` unset. The full
+first-time and everyday procedure is `PRODUCTION_DEPLOYMENT.md` in EmberAIO.
+
 ## Development checks
 
 ```sh
