@@ -27,7 +27,11 @@ func TestReusableCheckoutExpiryAndAnalyticsRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"+string(migration)); err != nil {
+	history, err := os.ReadFile("../../migrations/003_success_history.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"+string(migration)+string(history)); err != nil {
 		t.Fatal(err)
 	}
 

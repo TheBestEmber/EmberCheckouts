@@ -65,6 +65,7 @@ The verifier caches valid Ed25519 JWKS keys for five minutes, refreshes after th
 - `POST /v1/checkouts` — EmberAuth bearer token required.
 - `GET /v1/checkouts/{uuid}` — public and reusable until exactly ten minutes after creation; then returns `410`.
 - `POST /v1/checkouts/{uuid}/events` — public capability endpoint accepting only one allowlisted `outcome`.
+- `POST /v1/checkouts/{uuid}/order` — EmberAuth bearer token required. Records `orderNumber` for the owning membership. The value stays after the cart ciphertext is erased.
 
 Upload body:
 

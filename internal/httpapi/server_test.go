@@ -48,6 +48,10 @@ func (f *fakeStore) AddEvent(_ context.Context, _ string, outcome string) error 
 	f.event = outcome
 	return nil
 }
+func (f *fakeStore) SetOrder(_ context.Context, _, _, order string) error {
+	f.event = order
+	return nil
+}
 
 func testServer(t *testing.T) (*Server, *fakeStore, *crypto.Keyring) {
 	t.Helper()

@@ -42,6 +42,7 @@ type DataStore interface {
 	CreateCheckout(context.Context, domain.Identity, domain.CheckoutMetadata, crypto.Envelope) error
 	GetCheckout(context.Context, string) (store.Checkout, error)
 	AddEvent(context.Context, string, string) error
+	SetOrder(context.Context, string, string, string) error
 }
 
 type Config struct {
@@ -82,6 +83,7 @@ func New(cfg Config) *Server {
 	mux.HandleFunc("POST /v1/checkouts", s.createCheckout)
 	mux.HandleFunc("GET /v1/checkouts/{checkoutID}", s.getCheckout)
 	mux.HandleFunc("POST /v1/checkouts/{checkoutID}/events", s.addEvent)
+	mux.HandleFunc("POST /v1/checkouts/{checkoutID}/order", s.setOrder)
 	s.handler = s.middleware(mux)
 	return s
 }
@@ -203,6 +205,37 @@ func (s *Server) addEvent(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (s *Server) setOrder(w http.ResponseWriter, r *http.Request) {
+	identity, ok := s.authorize(w, r)
+	if !ok {
+		return
+	}
+	checkoutID := r.PathValue("checkoutID")
+	if !validV4(checkoutID) {
+		s.writeError(w, r, http.StatusNotFound, "not_found", "checkout not found")
+		return
+	}
+	if !s.allow(w, r, checkoutID) {
+		return
+	}
+	var body struct {
+		OrderNumber string `json:"orderNumber"`
+	}
+	if !s.decode(w, r, &body) {
+		return
+	}
+	body.OrderNumber = strings.TrimSpace(body.OrderNumber)
+	if err := domain.ValidateOrderNumber(body.OrderNumber); err != nil {
+		s.writeError(w, r, http.StatusBadRequest, "validation_failed", err.Error())
+		return
+	}
+	if err := s.store.SetOrder(r.Context(), checkoutID, identity.MembershipID, body.OrderNumber); err != nil {
+		s.storeError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) (domain.Identity, bool) {
 	raw, err := bearer(r.Header.Get("Authorization"))
 	if err != nil {
@@ -265,6 +298,8 @@ func (s *Server) storeError(w http.ResponseWriter, r *http.Request, err error) {
 		s.writeError(w, r, http.StatusGone, "checkout_expired", "checkout has expired")
 	case errors.Is(err, store.ErrEventCap):
 		s.writeError(w, r, http.StatusTooManyRequests, "event_limit_reached", "checkout event limit reached")
+	case errors.Is(err, store.ErrConflict):
+		s.writeError(w, r, http.StatusConflict, "order_conflict", "a different order number is already recorded")
 	default:
 		s.internalError(w, r, err)
 	}

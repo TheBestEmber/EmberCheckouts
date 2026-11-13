@@ -16,6 +16,7 @@ var (
 	ErrNotFound = errors.New("not found")
 	ErrGone     = errors.New("checkout expired")
 	ErrEventCap = errors.New("checkout event limit reached")
+	ErrConflict = errors.New("order already recorded")
 )
 
 type Store struct {
@@ -76,16 +77,18 @@ func (s *Store) CreateCheckout(
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO checkouts (
 			id, owner_subject, membership_id, installation_id, session_id,
-			module, site, title, quantity, price, currency, producer_version,
+			module, site, title, location, event_date, seating, mode,
+			quantity, price, currency, producer_version,
 			target_host, proxy_used, created_at, expires_at,
 			envelope_version, encryption_key_id, nonce, ciphertext
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16, $17, $18, $19, $20
+			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
 		)
 	`, metadata.ID, identity.Subject, identity.MembershipID, identity.InstallationID, identity.SessionID,
-		metadata.Module, metadata.Site, metadata.Title, metadata.Quantity, metadata.Price, metadata.Currency,
-		metadata.ProducerVersion, metadata.TargetHost, metadata.ProxyUsed, metadata.CreatedAt, metadata.ExpiresAt,
+		metadata.Module, metadata.Site, metadata.Title, metadata.Location, metadata.EventDate, metadata.Seating, metadata.Mode,
+		metadata.Quantity, metadata.Price, metadata.Currency, metadata.ProducerVersion,
+		metadata.TargetHost, metadata.ProxyUsed, metadata.CreatedAt, metadata.ExpiresAt,
 		envelope.Version, envelope.KeyID, envelope.Nonce, envelope.Ciphertext)
 	return err
 }
@@ -153,6 +156,30 @@ func (s *Store) AddEvent(ctx context.Context, checkoutID, outcome string) error 
 		return ErrGone
 	}
 	return ErrEventCap
+}
+
+func (s *Store) SetOrder(ctx context.Context, checkoutID, membershipID, orderNumber string) error {
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE checkouts
+		SET order_number = $3
+		WHERE id = $1 AND membership_id = $2 AND (order_number = '' OR order_number = $3)
+	`, checkoutID, membershipID, orderNumber)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 1 {
+		return nil
+	}
+	var owner string
+	var current string
+	err = s.pool.QueryRow(ctx, `SELECT membership_id, order_number FROM checkouts WHERE id = $1`, checkoutID).Scan(&owner, &current)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && owner != membershipID) {
+		return ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	return ErrConflict
 }
 
 func (s *Store) Cleanup(ctx context.Context) (CleanupResult, error) {

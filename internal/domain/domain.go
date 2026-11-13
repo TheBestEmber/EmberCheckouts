@@ -24,6 +24,10 @@ type Handoff struct {
 	Module          string   `json:"module"`
 	Site            string   `json:"site"`
 	Title           string   `json:"title"`
+	Location        string   `json:"location,omitempty"`
+	EventDate       string   `json:"eventDate,omitempty"`
+	Seating         string   `json:"seating,omitempty"`
+	Mode            string   `json:"mode,omitempty"`
 	TargetURL       string   `json:"targetUrl"`
 	ProxyURL        *string  `json:"proxyUrl,omitempty"`
 	Cookies         []Cookie `json:"cookies"`
@@ -71,6 +75,10 @@ type CheckoutMetadata struct {
 	Module          string    `json:"module"`
 	Site            string    `json:"site"`
 	Title           string    `json:"title"`
+	Location        string    `json:"location,omitempty"`
+	EventDate       string    `json:"eventDate,omitempty"`
+	Seating         string    `json:"seating,omitempty"`
+	Mode            string    `json:"mode,omitempty"`
 	Quantity        int       `json:"quantity"`
 	Price           string    `json:"price"`
 	Currency        string    `json:"currency"`
@@ -159,6 +167,22 @@ func ValidateHandoff(h *Handoff, opts ValidationOptions) error {
 	if strings.ContainsFunc(h.ProducerVersion, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
 		return errors.New("producerVersion must not contain control characters")
 	}
+	h.Location = strings.TrimSpace(h.Location)
+	h.EventDate = strings.TrimSpace(h.EventDate)
+	h.Seating = strings.TrimSpace(h.Seating)
+	h.Mode = strings.TrimSpace(h.Mode)
+	if err := plainText("location", h.Location, 200); err != nil {
+		return err
+	}
+	if err := plainText("eventDate", h.EventDate, 64); err != nil {
+		return err
+	}
+	if err := plainText("seating", h.Seating, 500); err != nil {
+		return err
+	}
+	if err := plainText("mode", h.Mode, 64); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -168,8 +192,31 @@ func MetadataFor(id string, h Handoff, createdAt time.Time) CheckoutMetadata {
 		ID: id, Module: h.Module, Site: h.Site, Title: strings.TrimSpace(h.Title),
 		Quantity: h.Display.Quantity, Price: h.Display.Price, Currency: h.Display.Currency,
 		ProducerVersion: strings.TrimSpace(h.ProducerVersion), TargetHost: target.Hostname(),
+		Location: h.Location, EventDate: h.EventDate, Seating: h.Seating, Mode: h.Mode,
 		ProxyUsed: h.ProxyURL != nil, CreatedAt: createdAt, ExpiresAt: createdAt.Add(CheckoutTTL),
 	}
+}
+
+func plainText(name, value string, max int) error {
+	if value == "" {
+		return nil
+	}
+	if err := bounded(name, value, 1, max); err != nil {
+		return err
+	}
+	if strings.ContainsFunc(value, func(r rune) bool { return r < 0x20 || r == 0x7f }) {
+		return fmt.Errorf("%s must not contain control characters", name)
+	}
+	return nil
+}
+
+// ValidateOrderNumber checks the order id stored for a later success history.
+func ValidateOrderNumber(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return errors.New("orderNumber is required")
+	}
+	return plainText("orderNumber", value, 64)
 }
 
 func slug(name, value string) error {
