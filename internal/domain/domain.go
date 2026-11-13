@@ -210,15 +210,6 @@ func plainText(name, value string, max int) error {
 	return nil
 }
 
-// ValidateOrderNumber checks the order id stored for a later success history.
-func ValidateOrderNumber(value string) error {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return errors.New("orderNumber is required")
-	}
-	return plainText("orderNumber", value, 64)
-}
-
 func slug(name, value string) error {
 	if err := bounded(name, strings.TrimSpace(value), 1, 64); err != nil {
 		return err

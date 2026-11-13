@@ -16,7 +16,6 @@ var (
 	ErrNotFound = errors.New("not found")
 	ErrGone     = errors.New("checkout expired")
 	ErrEventCap = errors.New("checkout event limit reached")
-	ErrConflict = errors.New("order already recorded")
 )
 
 type Store struct {
@@ -156,30 +155,6 @@ func (s *Store) AddEvent(ctx context.Context, checkoutID, outcome string) error 
 		return ErrGone
 	}
 	return ErrEventCap
-}
-
-func (s *Store) SetOrder(ctx context.Context, checkoutID, membershipID, orderNumber string) error {
-	tag, err := s.pool.Exec(ctx, `
-		UPDATE checkouts
-		SET order_number = $3
-		WHERE id = $1 AND membership_id = $2 AND (order_number = '' OR order_number = $3)
-	`, checkoutID, membershipID, orderNumber)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 1 {
-		return nil
-	}
-	var owner string
-	var current string
-	err = s.pool.QueryRow(ctx, `SELECT membership_id, order_number FROM checkouts WHERE id = $1`, checkoutID).Scan(&owner, &current)
-	if errors.Is(err, pgx.ErrNoRows) || (err == nil && owner != membershipID) {
-		return ErrNotFound
-	}
-	if err != nil {
-		return err
-	}
-	return ErrConflict
 }
 
 func (s *Store) Cleanup(ctx context.Context) (CleanupResult, error) {
