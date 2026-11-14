@@ -61,7 +61,7 @@ The verifier caches valid Ed25519 JWKS keys for five minutes, refreshes after th
 
 - `GET /healthz`
 - `GET /readyz`
-- `GET /open` — static no-referrer page. Links use `/open#checkout=<uuid>`, so the capability does not enter access logs or referrers.
+- `GET /open` — branded holding page. Styles are `GET /open.css` (CSP is `style-src 'self'`). Links use `/open#checkout=<uuid>`, so the capability does not enter access logs or referrers.
 - `POST /v1/checkouts` — EmberAuth bearer token required.
 - `GET /v1/checkouts/{uuid}` — public and reusable until exactly ten minutes after creation; then returns `410`.
 - `POST /v1/checkouts/{uuid}/events` — accepts one allowlisted `outcome` and stores nothing.
