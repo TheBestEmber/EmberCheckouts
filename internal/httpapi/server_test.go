@@ -200,6 +200,19 @@ func TestOpenPageAndNoWildcardCORS(t *testing.T) {
 		t.Fatalf("open page is missing no-referrer protection: status=%d header=%q body=%q",
 			response.Code, response.Header().Get("Referrer-Policy"), response.Body.String())
 	}
+	if !strings.Contains(response.Body.String(), `href="/open.css"`) ||
+		!strings.Contains(response.Header().Get("Content-Security-Policy"), "style-src 'self'") {
+		t.Fatalf("open page styles are blocked: csp=%q body=%q",
+			response.Header().Get("Content-Security-Policy"), response.Body.String())
+	}
+	stylesheet := httptest.NewRecorder()
+	server.Handler().ServeHTTP(stylesheet, httptest.NewRequest(http.MethodGet, "/open.css", nil))
+	if stylesheet.Code != http.StatusOK ||
+		stylesheet.Header().Get("Content-Type") != "text/css; charset=utf-8" ||
+		!strings.Contains(stylesheet.Body.String(), ".shell") {
+		t.Fatalf("open stylesheet: status=%d content-type=%q body=%q",
+			stylesheet.Code, stylesheet.Header().Get("Content-Type"), stylesheet.Body.String())
+	}
 
 	id := "33333333-3333-4333-8333-333333333333"
 	for _, method := range []string{http.MethodOptions, http.MethodGet} {

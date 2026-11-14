@@ -56,7 +56,6 @@ func (s *Store) Ready(ctx context.Context) error {
 	var ready bool
 	err := s.pool.QueryRow(ctx, `
 		SELECT to_regclass('public.checkouts') IS NOT NULL
-		   AND to_regclass('public.checkout_events') IS NOT NULL
 	`).Scan(&ready)
 	if err != nil {
 		return err
@@ -78,16 +77,16 @@ func (s *Store) CreateCheckout(
 			id, owner_subject, membership_id, installation_id, session_id,
 			module, site, title, location, event_date, seating, mode,
 			quantity, price, currency, producer_version,
-			target_host, proxy_used, created_at, expires_at,
+			target_host, created_at, expires_at,
 			envelope_version, encryption_key_id, nonce, ciphertext
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+			$13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
 		)
 	`, metadata.ID, identity.Subject, identity.MembershipID, identity.InstallationID, identity.SessionID,
 		metadata.Module, metadata.Site, metadata.Title, metadata.Location, metadata.EventDate, metadata.Seating, metadata.Mode,
 		metadata.Quantity, metadata.Price, metadata.Currency, metadata.ProducerVersion,
-		metadata.TargetHost, metadata.ProxyUsed, metadata.CreatedAt, metadata.ExpiresAt,
+		metadata.TargetHost, metadata.CreatedAt, metadata.ExpiresAt,
 		envelope.Version, envelope.KeyID, envelope.Nonce, envelope.Ciphertext)
 	return err
 }
@@ -126,35 +125,8 @@ func (s *Store) GetCheckout(ctx context.Context, checkoutID string) (Checkout, e
 	return checkout, tx.Commit(ctx)
 }
 
-func (s *Store) AddEvent(ctx context.Context, checkoutID, outcome string) error {
-	tag, err := s.pool.Exec(ctx, `
-		WITH accepted AS (
-			UPDATE checkouts
-			SET event_count = event_count + 1
-			WHERE id = $1 AND expires_at > now() AND event_count < 20
-			RETURNING id
-		)
-		INSERT INTO checkout_events (checkout_id, outcome)
-		SELECT id, $2 FROM accepted
-	`, checkoutID, outcome)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() != 0 {
-		return nil
-	}
-	var exists, expired bool
-	if err := s.pool.QueryRow(ctx, `
-		SELECT true, expires_at <= now() FROM checkouts WHERE id = $1
-	`, checkoutID).Scan(&exists, &expired); errors.Is(err, pgx.ErrNoRows) {
-		return ErrNotFound
-	} else if err != nil {
-		return err
-	}
-	if expired {
-		return ErrGone
-	}
-	return ErrEventCap
+func (s *Store) AddEvent(context.Context, string, string) error {
+	return nil
 }
 
 func (s *Store) Cleanup(ctx context.Context) (CleanupResult, error) {

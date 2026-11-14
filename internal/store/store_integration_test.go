@@ -31,7 +31,11 @@ func TestReusableCheckoutExpiryAndAnalyticsRetention(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := database.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"+string(migration)+string(history)); err != nil {
+	dropped, err := os.ReadFile("../../migrations/004_drop_unused_history.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := database.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"+string(migration)+string(history)+string(dropped)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -77,12 +81,11 @@ func TestReusableCheckoutExpiryAndAnalyticsRetention(t *testing.T) {
 
 	var ciphertext []byte
 	var retrievals int
-	var events int
-	if err := database.pool.QueryRow(ctx, `SELECT ciphertext, retrieval_count, event_count
-		FROM checkouts WHERE id = $1`, id).Scan(&ciphertext, &retrievals, &events); err != nil {
+	if err := database.pool.QueryRow(ctx, `SELECT ciphertext, retrieval_count
+		FROM checkouts WHERE id = $1`, id).Scan(&ciphertext, &retrievals); err != nil {
 		t.Fatal(err)
 	}
-	if ciphertext != nil || retrievals != 2 || events != 1 {
-		t.Fatalf("analytics not retained safely: ciphertext=%v retrievals=%d events=%d", ciphertext, retrievals, events)
+	if ciphertext != nil || retrievals != 2 {
+		t.Fatalf("analytics not retained safely: ciphertext=%v retrievals=%d", ciphertext, retrievals)
 	}
 }

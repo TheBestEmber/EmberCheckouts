@@ -7,5 +7,3 @@ REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM ember_checkouts_app;
 GRANT USAGE ON SCHEMA public TO ember_checkouts_app;
 
 GRANT SELECT, INSERT, UPDATE ON checkouts TO ember_checkouts_app;
-GRANT SELECT, INSERT ON checkout_events TO ember_checkouts_app;
-GRANT USAGE, SELECT ON SEQUENCE checkout_events_id_seq TO ember_checkouts_app;

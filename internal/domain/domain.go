@@ -84,7 +84,6 @@ type CheckoutMetadata struct {
 	Currency        string    `json:"currency"`
 	ProducerVersion string    `json:"producerVersion"`
 	TargetHost      string    `json:"targetHost"`
-	ProxyUsed       bool      `json:"proxyUsed"`
 	RetrievalCount  int64     `json:"retrievalCount"`
 	CreatedAt       time.Time `json:"createdAt"`
 	ExpiresAt       time.Time `json:"expiresAt"`
@@ -193,7 +192,7 @@ func MetadataFor(id string, h Handoff, createdAt time.Time) CheckoutMetadata {
 		Quantity: h.Display.Quantity, Price: h.Display.Price, Currency: h.Display.Currency,
 		ProducerVersion: strings.TrimSpace(h.ProducerVersion), TargetHost: target.Hostname(),
 		Location: h.Location, EventDate: h.EventDate, Seating: h.Seating, Mode: h.Mode,
-		ProxyUsed: h.ProxyURL != nil, CreatedAt: createdAt, ExpiresAt: createdAt.Add(CheckoutTTL),
+		CreatedAt: createdAt, ExpiresAt: createdAt.Add(CheckoutTTL),
 	}
 }
 

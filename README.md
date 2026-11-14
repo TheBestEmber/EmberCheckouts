@@ -2,7 +2,7 @@
 
 EmberCheckouts is a ten-minute encrypted checkout handoff service. EmberAIO uploads a payload using a short-lived EmberAuth token. Possession of the UUID v4 is the intentionally shareable capability for public, reusable retrieval until the server-owned expiry.
 
-Sensitive payload data is encrypted with AES-256-GCM before storage. The AAD binds the envelope version, EmberAuth subject, and checkout UUID. Cleanup irreversibly nulls ciphertext, nonce, encryption key ID, and envelope version after expiry while preserving non-secret analytics and allowlisted import outcomes.
+Sensitive payload data is encrypted with AES-256-GCM before storage. The AAD binds the envelope version, EmberAuth subject, and checkout UUID. Cleanup irreversibly nulls ciphertext, nonce, encryption key ID, and envelope version after expiry while preserving the cart row.
 
 ## Local bootstrap
 
@@ -64,7 +64,7 @@ The verifier caches valid Ed25519 JWKS keys for five minutes, refreshes after th
 - `GET /open` — static no-referrer page. Links use `/open#checkout=<uuid>`, so the capability does not enter access logs or referrers.
 - `POST /v1/checkouts` — EmberAuth bearer token required.
 - `GET /v1/checkouts/{uuid}` — public and reusable until exactly ten minutes after creation; then returns `410`.
-- `POST /v1/checkouts/{uuid}/events` — public capability endpoint accepting only one allowlisted `outcome`.
+- `POST /v1/checkouts/{uuid}/events` — accepts one allowlisted `outcome` and stores nothing.
 
 Upload body:
 
@@ -90,7 +90,7 @@ Allowed event outcomes are `import_succeeded`, `import_partial`, `invalid_payloa
 
 ## Data policy
 
-Durable analytics contain only EmberAuth subject/membership/installation/session IDs, module/site, sanitized title, quantity, price/currency, producer version, target host, proxy-used boolean, timestamps, retrieval count, and allowlisted outcome codes. Cookies, storage values, proxy URL/credentials, full target URL, tokens, and raw errors exist only inside the encrypted ten-minute payload and are never logged.
+Durable analytics contain only EmberAuth subject/membership/installation/session IDs, module/site, sanitized title, location, date, seating, mode, quantity, price/currency, producer version, target host, timestamps, and retrieval count. Cookies, storage values, proxy URL/credentials, full target URL, tokens, and raw errors exist only inside the encrypted ten-minute payload and are never logged. Import outcomes are not stored.
 
 ## Production
 

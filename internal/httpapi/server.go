@@ -79,6 +79,7 @@ func New(cfg Config) *Server {
 	mux.HandleFunc("GET /healthz", s.health)
 	mux.HandleFunc("GET /readyz", s.ready)
 	mux.HandleFunc("GET /open", s.open)
+	mux.HandleFunc("GET /open.css", s.openCSS)
 	mux.HandleFunc("POST /v1/checkouts", s.createCheckout)
 	mux.HandleFunc("GET /v1/checkouts/{checkoutID}", s.getCheckout)
 	mux.HandleFunc("POST /v1/checkouts/{checkoutID}/events", s.addEvent)
@@ -108,6 +109,11 @@ func (s *Server) open(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = openPage.Execute(w, nil)
+}
+
+func (s *Server) openCSS(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	_, _ = io.WriteString(w, openCSS)
 }
 
 func (s *Server) createCheckout(w http.ResponseWriter, r *http.Request) {
@@ -294,7 +300,7 @@ func (s *Server) middleware(next http.Handler) http.Handler {
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'self'; frame-ancestors 'none'")
 
 		started := time.Now()
 		recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -419,7 +425,144 @@ func (l *limiter) Allow(key string) bool {
 }
 
 var openPage = template.Must(template.New("open").Parse(`<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width">
-<meta name="referrer" content="no-referrer"><title>Ember Checkout</title></head><body>
-<main><h1>Ember Checkout</h1><p>Open or refresh the Ember extension to continue this checkout.</p></main>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width">
+<meta name="referrer" content="no-referrer"><title>Opening checkout · Ember</title>
+<link rel="stylesheet" href="/open.css">
+</head><body>
+<div class="glow"></div>
+<div class="grid"></div>
+<main class="shell">
+  <p class="brand">EMBER</p>
+  <p class="kicker"><span class="pulse"></span>Checkout live</p>
+  <h1>Opening<br>checkout</h1>
+  <p class="lede">The extension is restoring this session and sending you to the basket.</p>
+  <ol class="rail">
+    <li class="on"><i>01</i><b>Link opened</b></li>
+    <li><i>02</i><b>Session restored</b></li>
+    <li><i>03</i><b>Basket opens</b></li>
+  </ol>
+  <p class="help">Still here? Install or reload the Ember extension, then open the link again.</p>
+</main>
 </body></html>`))
+
+const openCSS = `
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  overflow-x: hidden;
+  color: #f5f5f5;
+  background: #070707;
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+.glow, .grid { position: fixed; inset: 0; pointer-events: none; }
+.glow {
+  background:
+    radial-gradient(ellipse 70% 45% at 15% 0%, rgba(232,73,29,.28), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 90% 100%, rgba(247,147,30,.12), transparent 50%);
+}
+.grid {
+  opacity: .5;
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at 30% 20%, #000 20%, transparent 75%);
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: linear-gradient(#e8491d, #f7931e);
+}
+.shell {
+  position: relative;
+  width: min(100% - 2.5rem, 44rem);
+  margin: 0 auto;
+  padding: clamp(3.5rem, 16vh, 8rem) 0 3rem;
+}
+.brand {
+  margin: 0 0 2.75rem;
+  color: #fff;
+  font-size: clamp(2.8rem, 10vw, 5.5rem);
+  font-weight: 800;
+  letter-spacing: -.06em;
+  line-height: .9;
+}
+.kicker {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  margin: 0 0 1rem;
+  color: #e87a59;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+.pulse {
+  width: .55rem;
+  height: .55rem;
+  border-radius: 50%;
+  background: #e8491d;
+  box-shadow: 0 0 0 0 rgba(232,73,29,.55);
+  animation: pulse 1.6s ease-out infinite;
+}
+@keyframes pulse {
+  70% { box-shadow: 0 0 0 .7rem rgba(232,73,29,0); }
+  100% { box-shadow: 0 0 0 0 rgba(232,73,29,0); }
+}
+h1 {
+  margin: 0;
+  max-width: 11ch;
+  color: #fff;
+  font-size: clamp(2.4rem, 9vw, 4.6rem);
+  font-weight: 650;
+  letter-spacing: -.055em;
+  line-height: .95;
+}
+.lede {
+  max-width: 28rem;
+  margin: 1.25rem 0 0;
+  color: #9a9a9a;
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+.rail {
+  display: grid;
+  gap: 0;
+  width: min(100%, 28rem);
+  margin: 2.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+.rail li {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr;
+  gap: 1rem;
+  align-items: baseline;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  color: #6f6f6f;
+}
+.rail li.on { color: #f0f0f0; }
+.rail i {
+  font-style: normal;
+  color: #e8491d;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.rail b { font-size: .95rem; font-weight: 550; }
+.help {
+  margin: 1.75rem 0 0;
+  color: #5c5c5c;
+  font-size: .8rem;
+  line-height: 1.5;
+}
+`
